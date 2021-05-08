@@ -40,6 +40,7 @@
 
 #include <opencv2/core/core.hpp>
 //#include <opencv2/cv.hpp>
+#include <opencv2/imgproc/types_c.h>
 #include <opencv2/ml/ml.hpp>
 
 #include <sensor_msgs/LaserScan.h>
@@ -460,7 +461,7 @@ int main(int argc, char **argv)
 {
   // Declare a ROS node so we can get ROS parameters from the server
   ros::init(argc, argv,"train_leg_detector");
-  ros::NodeHandle nh;
+  ros::NodeHandle nh("~");
 
   TrainLegDetector tld(nh);
   tld.loadData(argc, argv);

@@ -43,6 +43,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/ml/ml.hpp>
 #include <opencv2/ml.hpp>
+#include <opencv2/imgproc/types_c.h>
 
 // Local headers
 #include <leg_tracker/laser_processor.h>

@@ -10,6 +10,9 @@ if(NOT Boost_FOUND)
     message(ERROR " Boost not found!")
 endif(NOT Boost_FOUND)
 
+SET(CMAKE_PREFIX_PATH "/usr/local/libopencv3")
+find_package(OpenCV 3.4.11 EXACT)
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
@@ -44,6 +47,7 @@ catkin_package(
 include_directories(
 	INCLUDE include
 	${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 
@@ -55,6 +59,7 @@ add_executable(
 target_link_libraries(
   extract_positive_training_clusters
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 add_dependencies(extract_positive_training_clusters ${PROJECT_NAME}_generate_messages_cpp)
 add_dependencies(extract_positive_training_clusters ${PROJECT_NAME}_gencpp)
@@ -74,6 +79,7 @@ add_executable(
 target_link_libraries(
   detect_leg_clusters 
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 add_dependencies(detect_leg_clusters ${PROJECT_NAME}_generate_messages_cpp)
 add_dependencies(detect_leg_clusters ${PROJECT_NAME}_gencpp)
@@ -87,6 +93,7 @@ add_executable(
 target_link_libraries(
   local_occupancy_grid_mapping 
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 add_dependencies(local_occupancy_grid_mapping ${PROJECT_NAME}_generate_messages_cpp)
 add_dependencies(local_occupancy_grid_mapping ${PROJECT_NAME}_gencpp)
@@ -101,6 +108,7 @@ add_executable(
 target_link_libraries(
   train_leg_detector
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 add_dependencies(train_leg_detector ${PROJECT_NAME}_generate_messages_cpp)
 add_dependencies(train_leg_detector ${PROJECT_NAME}_gencpp)
