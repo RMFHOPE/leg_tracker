@@ -79,7 +79,7 @@ class ObjectTracked:
         elif scan_frequency > 14.99 and scan_frequency < 15.01:
             std_process_noise = 0.03333
         else:
-            print "Scan frequency needs to be either 7.5, 10 or 15 or the standard deviation of the process noise needs to be tuned to your scanner frequency"
+            print("Scan frequency needs to be either 7.5, 10 or 15 or the standard deviation of the process noise needs to be tuned to your scanner frequency")
         std_pos = std_process_noise
         std_vel = std_process_noise
         std_obs = 0.1
@@ -172,17 +172,15 @@ class KalmanMultiTracker:
         random.seed(1) 
 
         # Get ROS params
-        self.fixed_frame = rospy.get_param("fixed_frame", "odom")
+        self.fixed_frame = rospy.get_param("~fixed_frame", "odom")
         self.max_leg_pairing_dist = rospy.get_param("max_leg_pairing_dist", 0.8)
         self.confidence_threshold_to_maintain_track = rospy.get_param("confidence_threshold_to_maintain_track", 0.1)
         self.publish_occluded = rospy.get_param("publish_occluded", True)
         self.publish_people_frame = rospy.get_param("publish_people_frame", self.fixed_frame)
         self.use_scan_header_stamp_for_tfs = rospy.get_param("use_scan_header_stamp_for_tfs", False)
-        self.publish_detected_people = rospy.get_param("display_detected_people", False)        
-        self.dist_travelled_together_to_initiate_leg_pair = rospy.get_param("dist_travelled_together_to_initiate_leg_pair", 0.5)
-        scan_topic = rospy.get_param("scan_topic", "scan");
-        self.scan_frequency = rospy.get_param("scan_frequency", 7.5)
-        self.in_free_space_threshold = rospy.get_param("in_free_space_threshold", 0.06)
+        self.dist_travelled_together_to_initiate_leg_pair = rospy.get_param("~dist_travelled_together_to_initiate_leg_pair", 0.5)
+        self.scan_frequency = rospy.get_param("~scan_frequency", 7.5)
+        self.in_free_space_threshold = rospy.get_param("~in_free_space_threshold", 0.06)
         self.confidence_percentile = rospy.get_param("confidence_percentile", 0.90)
         self.max_std = rospy.get_param("max_std", 0.9)
 
@@ -197,7 +195,7 @@ class KalmanMultiTracker:
         self.non_leg_clusters_pub = rospy.Publisher('non_leg_clusters', LegArray, queue_size=300)
 
         # ROS subscribers         
-        self.detected_clusters_sub = rospy.Subscriber('detected_leg_clusters', LegArray, self.detected_clusters_callback)      
+        self.detected_clusters_sub = rospy.Subscriber('/detected_leg_clusters', LegArray, self.detected_clusters_callback)      
         self.local_map_sub = rospy.Subscriber('local_map', OccupancyGrid, self.local_map_callback)
 
         rospy.spin() # So the node doesn't immediately shut down
@@ -220,7 +218,7 @@ class KalmanMultiTracker:
         """
         # If we haven't got the local map yet, assume nothing's in freespace
         if self.local_map == None:
-            return self.in_free_space_threshold*2
+            return self.in_free_space_threshold**2
 
         # Get the position of (x,y) in local map coords
         map_x = int(round((x - self.local_map.info.origin.position.x)/self.local_map.info.resolution))
@@ -230,8 +228,8 @@ class KalmanMultiTracker:
         # If called repeatedly on the same local_map, this could be sped up with a sum-table
         sum = 0
         kernel_size = 2;
-        for i in xrange(map_x-kernel_size, map_x+kernel_size):
-            for j in xrange(map_y-kernel_size, map_y+kernel_size):
+        for i in range(map_x-kernel_size, map_x+kernel_size):
+            for j in range(map_y-kernel_size, map_y+kernel_size):
                 if i + j*self.local_map.info.height < len(self.local_map.data):
                     sum += self.local_map.data[i + j*self.local_map.info.height]
                 else:  
@@ -519,7 +517,7 @@ class KalmanMultiTracker:
             for track in self.objects_tracked:
                 if track.is_person:
                     continue
-                    
+                
                 if self.publish_occluded or track.seen_in_current_scan: # Only publish people who have been seen in current scan, unless we want to publish occluded people
                     # Get the track position in the <self.publish_people_frame> frame
                     ps = PointStamped()
@@ -548,6 +546,7 @@ class KalmanMultiTracker:
                     marker.color.a = 1
                     marker.pose.position.x = ps.point.x 
                     marker.pose.position.y = ps.point.y
+                    marker.pose.orientation.w = 1
                     marker.id = marker_id
                     marker_id += 1
                     marker.type = Marker.CYLINDER
@@ -589,7 +588,7 @@ class KalmanMultiTracker:
                     # self.marker_pub.publish(marker)
 
             # Clear previously published track markers
-            for m_id in xrange(marker_id, self.prev_track_marker_id):
+            for m_id in range(marker_id, self.prev_track_marker_id):
                 marker = Marker()
                 marker.header.stamp = now                
                 marker.header.frame_id = self.publish_people_frame
@@ -666,6 +665,7 @@ class KalmanMultiTracker:
                         marker.color.a = (rospy.Duration(3) - (rospy.get_rostime() - person.last_seen)).to_sec()/rospy.Duration(3).to_sec() + 0.1
                         marker.pose.position.x = ps.point.x 
                         marker.pose.position.y = ps.point.y
+                        marker.pose.orientation.w = 1
                         marker.id = marker_id 
                         marker_id += 1
                         marker.type = Marker.CYLINDER
@@ -711,6 +711,7 @@ class KalmanMultiTracker:
                         end_point.y = start_point.y + 0.5*person.vel_y
                         marker.pose.position.x = 0.
                         marker.pose.position.y = 0.
+                        marker.pose.orientation.w = 1
                         marker.pose.position.z = 0.1
                         marker.id = marker_id
                         marker_id += 1
@@ -728,6 +729,7 @@ class KalmanMultiTracker:
                         gate_dist_euclid = scipy.stats.norm.ppf(1.0 - (1.0-self.confidence_percentile)/2., 0, std)
                         marker.pose.position.x = ps.point.x 
                         marker.pose.position.y = ps.point.y                    
+                        marker.pose.orientation.w = 1
                         marker.type = Marker.SPHERE
                         marker.scale.x = 2*gate_dist_euclid
                         marker.scale.y = 2*gate_dist_euclid
@@ -742,7 +744,7 @@ class KalmanMultiTracker:
                         self.marker_pub.publish(marker)                
 
         # Clear previously published people markers
-        for m_id in xrange(marker_id, self.prev_person_marker_id):
+        for m_id in range(marker_id, self.prev_person_marker_id):
             marker = Marker()
             marker.header.stamp = now                
             marker.header.frame_id = self.publish_people_frame

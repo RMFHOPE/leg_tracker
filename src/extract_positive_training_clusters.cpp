@@ -147,10 +147,10 @@ public:
         if (!leg_cluster_positions.poses.empty())  // at least one leg has been found in current scan
         {
           // Save position of leg to be used later for training 
-          save_bag.write("/leg_cluster_positions", ros::Time::now(), leg_cluster_positions); 
+          save_bag.write("/leg_cluster_positions", scan->header.stamp, leg_cluster_positions);
 
           // Save scan
-          save_bag.write("/training_scan", ros::Time::now(), *scan);
+          save_bag.write("/training_scan", scan->header.stamp, *scan);
 
           // Save a marker of the position of the cluster we extracted. 
           // Just used so we can playback the rosbag file 
@@ -161,13 +161,14 @@ public:
               i++)
           {
             visualization_msgs::Marker m;
-            m.header.frame_id = "laser_frame";
+            m.header.frame_id = laser_frame_;
             m.ns = "LEGS";
             m.id = i;
             m.type = m.SPHERE;
             m.pose.position.x = leg_cluster_positions.poses[i].position.x;
             m.pose.position.y = leg_cluster_positions.poses[i].position.y;
             m.pose.position.z = 0.1;
+            m.pose.orientation.w = 1.0;
             m.scale.x = .2;
             m.scale.y = .2;
             m.scale.z = .2;
@@ -177,7 +178,7 @@ public:
             m.color.r = 1.0;
             ma.markers.push_back(m);
           }
-          save_bag.write("/visualization_marker_array", ros::Time::now(), ma);
+          save_bag.write("/visualization_marker_array", scan->header.stamp, ma);
         }
       }
     }
