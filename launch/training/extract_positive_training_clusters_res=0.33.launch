@@ -7,17 +7,17 @@ To check that you've selected the right clusters, play back the generated bagfil
 <launch>
   <!-- global params -->
   <arg name="min_points_per_cluster" value="3" />
-  <arg name="cluster_dist_euclid" value="0.5" />
+  <arg name="cluster_dist_euclid" value="0.13" />
 
-  <arg name="input_filename" value="urg2" />
-  <arg name="min_angle" value="urg2" />
-  <arg name="max_angle" value="urg2" />
-  <arg name="max_dist" value="urg2" />
+  <arg name="input_filename1" value="training_dataset_positive" />
+  <arg name="min_angle" value="-135" />
+  <arg name="max_angle" value="135" />
+  <arg name="max_dist" value="3.25" />
 
    <!-- first rosbag file with positive examples -->
-  <node pkg="leg_tracker" type="extract_positive_training_clusters" name="extract_positive_training_clusters11" output="screen">
-    <param name="load_bag_file" value="$(find leg_tracker)/rosbags/training_scans_res=0.33/positive_not_extracted/$(arg input_filename).bag"/>
-    <param name="save_bag_file" value="$(find leg_tracker)/rosbags/training_scans_res=0.33/$(arg input_filename)_extracted.bag"/>
+  <node pkg="leg_tracker" type="extract_positive_training_clusters" name="extract_positive_training_clusters1" output="screen">
+    <param name="load_bag_file" value="$(find leg_tracker)/rosbags/training_scans_res=0.33/positive_not_extracted/$(arg input_filename1).bag"/>
+    <param name="save_bag_file" value="$(find leg_tracker)/rosbags/training_scans_res=0.33/$(arg input_filename1)_extracted.bag"/>
     
     <param name="scan_topic" value="/scan_filtered"/>
     <param name="laser_frame" value="laser"/>
@@ -29,6 +29,5 @@ To check that you've selected the right clusters, play back the generated bagfil
     <param name="min_points_per_cluster" value="$(arg min_points_per_cluster)"/> 
     <param name="cluster_dist_euclid" value="$(arg cluster_dist_euclid)"/>   
   </node>   
-
 </launch>
 
