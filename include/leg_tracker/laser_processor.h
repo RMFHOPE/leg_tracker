@@ -120,8 +120,12 @@ class ScanProcessor
 {
   std::list<SampleSet*> clusters_;
   sensor_msgs::LaserScan scan_;
+  std::list<std::vector<int>> cluster_indices_;
 
 public:
+  std::vector<int> laser_indices;
+  std::vector<std::vector<uint32_t>> laser_indice_cluster;
+
   /**
   * @brief Get all the clusters in the scan
   * @return List of clusters

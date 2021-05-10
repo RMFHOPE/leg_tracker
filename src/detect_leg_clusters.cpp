@@ -191,6 +191,7 @@ private:
     }
     else // transform_available
     {
+      int num_clusters = 0;
       // Iterate through all clusters
       for (std::list<laser_processor::SampleSet*>::iterator cluster = processor.getClusters().begin();
        cluster != processor.getClusters().end();
@@ -200,7 +201,7 @@ private:
         tf::Stamped<tf::Point> position((*cluster)->getPosition(), tf_time, scan->header.frame_id);
         float rel_dist = pow(position[0]*position[0] + position[1]*position[1], 1./2.);
         
-        // Only consider clusters within max_distance. 
+        // Only consider clusters within max_distance.
         if (rel_dist < max_detect_distance_)
         {
           // Classify cluster using random forest classifier
@@ -245,11 +246,17 @@ private:
               new_leg.position.x = position[0];
               new_leg.position.y = position[1];
               new_leg.confidence = probability_of_leg;
+              new_leg.indices = processor.laser_indice_cluster[num_clusters];
               leg_set.insert(new_leg);
+              printf("Correct: #%d -- %ld\n",num_clusters,(*cluster)->size());
+              printf("Extract: #%d -- %ld\n",num_clusters,(processor.laser_indice_cluster[num_clusters]).size());
+              printf("Finish Detection!!!!! :%d (num_clusters: %ld, number_: %ld)\n",(*cluster)->size()==processor.laser_indice_cluster[num_clusters].size(),(*cluster)->size(),processor.laser_indice_cluster[num_clusters].size());    
             }
           }
         }
-      }     
+
+      num_clusters++;
+      } 
     }    
  
 
