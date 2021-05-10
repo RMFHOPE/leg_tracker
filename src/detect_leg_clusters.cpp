@@ -248,14 +248,11 @@ private:
               new_leg.confidence = probability_of_leg;
               new_leg.indices = processor.laser_indice_cluster[num_clusters];
               leg_set.insert(new_leg);
-              printf("Correct: #%d -- %ld\n",num_clusters,(*cluster)->size());
-              printf("Extract: #%d -- %ld\n",num_clusters,(processor.laser_indice_cluster[num_clusters]).size());
-              printf("Finish Detection!!!!! :%d (num_clusters: %ld, number_: %ld)\n",(*cluster)->size()==processor.laser_indice_cluster[num_clusters].size(),(*cluster)->size(),processor.laser_indice_cluster[num_clusters].size());    
             }
           }
         }
 
-      num_clusters++;
+        num_clusters++;
       } 
     }    
  

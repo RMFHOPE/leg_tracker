@@ -100,7 +100,6 @@ ScanProcessor::ScanProcessor(const sensor_msgs::LaserScan& scan)
   }
   clusters_.push_back(cluster);
   cluster_indices_.push_back(cluster_indices);
-  printf("%ld ---- %ld --- number_reject_point: %d --- total_point: %ld\n",cluster_indices.size(),cluster->size(),number_reject_point,scan.ranges.size());
 }
 
 ScanProcessor::~ScanProcessor()
@@ -111,14 +110,9 @@ ScanProcessor::~ScanProcessor()
 
 void ScanProcessor::removeLessThan(uint32_t num)
 {
-  printf("removeLessThan\n");
   std::list<SampleSet*>::iterator c_iter = clusters_.begin();
 
   std::vector<int> indexToBeRemove;
-  printf("Before removeLessThan function: %ld -- %ld -- %d -- %ld\n",clusters_.size(),laser_indices.size()-1,laser_indices[laser_indices.size()-1],cluster_indices_.begin()->size()-1);
-  for(int i=0;i<laser_indices.size()-1;i++){
-    printf("From index: %d to %d\n",laser_indices[i],laser_indices[i+1]);
-  }
 
   int index = 0;
   int removed_points = 0;
@@ -126,7 +120,6 @@ void ScanProcessor::removeLessThan(uint32_t num)
   {
     if ( (*c_iter)->size() < num )
     {
-      printf("Deleting numberOfPoint: %ld from %d --> %d\n",(*c_iter)->size(),laser_indices[index],laser_indices[index+1]);
       indexToBeRemove.push_back(laser_indices[index]);
       indexToBeRemove.push_back(laser_indices[index+1]);
       removed_points+=(*c_iter)->size();
@@ -135,86 +128,30 @@ void ScanProcessor::removeLessThan(uint32_t num)
     } 
     else 
     {
-      printf("Current segment: %ld\n",(*c_iter)->size());
       ++c_iter;
     }
     index++;
   }
+
   // Don't forget the last index
   if(abs(laser_indices[index]-laser_indices[index-1])<num){
     indexToBeRemove.push_back(laser_indices[index-1]);
     indexToBeRemove.push_back(laser_indices[index]);
   }
 
-  printf("laser_indices size %ld -- %d -- %d\n",laser_indices.size(),index-1,index);  
-  printf("indexToBeRemove size %ld\n",indexToBeRemove.size());  
-
-  printf("laser_indices: ");
-  for(int i = 0;i<laser_indices.size();i++){
-    printf("%d--",laser_indices[i]);
-  }
-  printf("\n");
-
-  printf("indexToBeRemove: ");
-  for(int i = 0;i<indexToBeRemove.size();i++){
-    printf("%d--",indexToBeRemove[i]);
-  }
-  printf("\n");
-
   std::list<std::vector<int>>::iterator cluster_indices__indices = cluster_indices_.begin();
   while (cluster_indices__indices != cluster_indices_.end())
   {
     if(indexToBeRemove.size()>1){
-      for(int i=0;i<indexToBeRemove.size()-1;){
-        printf("indexToBeRemove: %d to %d\n",indexToBeRemove[i],indexToBeRemove[i+1]);
-        i=i+2;
-      }
-
       int removed_indices = 0;
       for(int i=0;i<indexToBeRemove.size()-1;){
 
-        for(int no_cluster_indices__indices=0;no_cluster_indices__indices<100;no_cluster_indices__indices++){
-          printf("%d--",(*cluster_indices__indices)[no_cluster_indices__indices]);
-        }
-
-        printf("\nlaser_indices: ");
-        for(int i = 0;i<laser_indices.size();i++){
-          printf("%d--",laser_indices[i]);
-        }
-
-        printf("\n");
-        printf("cluster_indices_ size: %ld\n",cluster_indices_.begin()->size());
-        printf("Before From index: %d to %d\n",indexToBeRemove[i],indexToBeRemove[i+1]);
-        printf("After From index: %d to %d\n",indexToBeRemove[i]-removed_indices,indexToBeRemove[i+1]-removed_indices);
-
         (*cluster_indices__indices).erase((*cluster_indices__indices).begin()+indexToBeRemove[i]-removed_indices,(*cluster_indices__indices).begin()+indexToBeRemove[i+1]-removed_indices);
-        auto it = find(laser_indices.begin(), laser_indices.end(), indexToBeRemove[i+1]);
-        // if (it != laser_indices.end())
-        // {
-        //   laser_indices.erase(std::remove(laser_indices.begin(), laser_indices.end(), indexToBeRemove[i+1]), laser_indices.end());
-          
-        //   int index = it - laser_indices.begin();
-        //   printf("Found index %d with value: %d with removed_indices: %d\n",index,indexToBeRemove[i+1],removed_indices);
-
-        //   for(int i = index;i<laser_indices.size();i++){
-        //     laser_indices[i] = laser_indices[i] - indexToBeRemove[i+1];
-        //   }
-        // }
-        // else printf("Not found!!!!!!!!! %d %d\n",indexToBeRemove[i],indexToBeRemove[i+1]);
-        
         removed_indices += indexToBeRemove[i+1] - indexToBeRemove[i];
 
         i=i+2;
       }
     }
-
-
-      printf("------------------------------------------------- Finish processing!!!!!\n");
-      // for(int no_cluster_indices__indices=0;no_cluster_indices__indices<(*cluster_indices__indices).size()-1;no_cluster_indices__indices++){
-      //   printf("%d--",(*cluster_indices__indices)[no_cluster_indices__indices]);
-      // }
-
-      // std::vector<int> laser_indices;
       laser_indice_cluster.clear();
       laser_indices.clear();
 
@@ -228,27 +165,15 @@ void ScanProcessor::removeLessThan(uint32_t num)
         sum_indices+=(*c_iter)->size();
         ++c_iter;
       }
-      printf("\nlaser_indices: ");
       for(int i = 0;i<laser_indices.size()-1;i++){
-        printf("%d--",laser_indices[i]);
-      }
-      printf("\n");
-      for(int i = 0;i<laser_indices.size()-1;i++){
-        printf("This cluster from %d to %d\n",laser_indices[i],laser_indices[i+1]-1);
         std::vector<uint32_t> current_cluster_indices;
         for(int no_cluster_indices__indices=laser_indices[i];no_cluster_indices__indices<laser_indices[i+1];no_cluster_indices__indices++){
           current_cluster_indices.push_back((*cluster_indices__indices)[no_cluster_indices__indices]);
-          printf("%d--",(*cluster_indices__indices)[no_cluster_indices__indices]);
         }
         laser_indice_cluster.push_back(current_cluster_indices);
-        printf("\npush back to laser_indice_cluster: %ld\n",current_cluster_indices.size());
       }
       ++cluster_indices__indices;
   }
-
-  printf("After removed_cluster: %d  -- laser_indice_cluster: %ld\n",removed_points,laser_indice_cluster.size());
-  printf("After removeLessThan %ld -- %ld -- %d -- %ld\n",clusters_.size(),laser_indices.size()-1,laser_indices[laser_indices.size()-1],cluster_indices_.begin()->size()-1);
-  printf("-----\n");
 }
 
 
@@ -274,7 +199,6 @@ void ScanProcessor::splitConnected(float thresh)
       sample_queue.push_back(*s_first);
       (*c_iter)->erase(s_first);
       std::list<Sample*>::iterator s_q = sample_queue.begin();
-      // printf("------- start iterating point index: %ld-------\n",initiate_point-(*c_iter)->size()-1);
       laser_indices.push_back(initiate_point-(*c_iter)->size()-1);
       while (s_q != sample_queue.end())
       {
@@ -306,7 +230,6 @@ void ScanProcessor::splitConnected(float thresh)
       tmp_clusters.push_back(c);
     }
 
-    // printf("------- end iterating point index: %d-------\n",initiate_point-1);
     laser_indices.push_back(initiate_point-1);
     //Now that c_iter is empty, we can delete
     delete (*c_iter);
@@ -315,7 +238,6 @@ void ScanProcessor::splitConnected(float thresh)
     clusters_.erase(c_iter++);
   }
 
-  // printf("clusters_ size: %ld  ||  tmp_clusters: %ld\n",clusters_.size(),tmp_clusters.size());
   // Insert our temporary clusters list back into the de facto list
   clusters_.insert(clusters_.begin(), tmp_clusters.begin(), tmp_clusters.end());
 }
