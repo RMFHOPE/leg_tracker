@@ -10,7 +10,7 @@ if(NOT Boost_FOUND)
     message(ERROR " Boost not found!")
 endif(NOT Boost_FOUND)
 
-SET(CMAKE_PREFIX_PATH "/usr/local/libopencv3")
+list(APPEND CMAKE_PREFIX_PATH "/usr/local/libopencv3")
 find_package(OpenCV 3.4.11 EXACT)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -22,6 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
   rosbag
   image_geometry
   message_generation
+  backward_ros
 )
 
 add_message_files(
