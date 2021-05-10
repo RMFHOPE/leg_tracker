@@ -64,9 +64,10 @@ public:
   /**
   * @brief Constructor
   */
-  DetectLegClusters():
+  DetectLegClusters(ros::NodeHandle &n):
   scan_num_(0),
-  num_prev_markers_published_(0)
+  num_prev_markers_published_(0),
+  nh_(n)
   {  
     // Get ROS parameters  
     std::string forest_file;
@@ -103,8 +104,8 @@ public:
 
     // ROS subscribers + publishers
     scan_sub_ =  nh_.subscribe(scan_topic, 10, &DetectLegClusters::laserCallback, this);
-    markers_pub_ = nh_.advertise<visualization_msgs::Marker>("visualization_marker", 20);
-    detected_leg_clusters_pub_ = nh_.advertise<leg_tracker::LegArray>("detected_leg_clusters", 20);
+    markers_pub_ = nh_.advertise<visualization_msgs::Marker>("/visualization_marker", 20);
+    detected_leg_clusters_pub_ = nh_.advertise<leg_tracker::LegArray>("/detected_leg_clusters", 20);
   }
 
 private:
@@ -269,10 +270,11 @@ private:
       m.header.frame_id = fixed_frame_;
       m.ns = "LEGS";
       m.id = id_num++;
-      m.type = m.SPHERE;
+      m.type = m.CUBE;
       m.pose.position.x = leg.position.x ;
       m.pose.position.y = leg.position.y;
       m.pose.position.z = 0.2;
+      m.pose.orientation.w = 1.0;
       m.scale.x = 0.13;
       m.scale.y = 0.13;
       m.scale.z = 0.13;
@@ -325,7 +327,8 @@ private:
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "detect_leg_clusters");
-  DetectLegClusters dlc;
+  ros::NodeHandle n("~");
+  DetectLegClusters dlc(n);
   ros::spin();
   return 0;
 }
