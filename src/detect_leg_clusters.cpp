@@ -53,6 +53,7 @@
 #include <leg_tracker/Leg.h>
 #include <leg_tracker/LegArray.h>
 
+#include <cstdlib>
 
 
 /**
@@ -185,6 +186,7 @@ private:
     
     // Store all processes legs in a set ordered according to their relative distance to the laser scanner
     std::set <leg_tracker::Leg, CompareLegs> leg_set;
+    std::vector<leg_tracker::Leg> new_leg_array;
     if (!transform_available)
     {
       ROS_INFO("Not publishing detected leg clusters because no tf was available");
@@ -246,7 +248,11 @@ private:
               new_leg.position.x = position[0];
               new_leg.position.y = position[1];
               new_leg.confidence = probability_of_leg;
+              new_leg.paired = false;
               new_leg.indices = processor.laser_indice_cluster[num_clusters];
+              new_leg.first_indice = new_leg.indices[0];
+              new_leg.last_indice = new_leg.indices[new_leg.indices.size()-1];
+              new_leg_array.push_back(new_leg);
               leg_set.insert(new_leg);
             }
           }
@@ -286,7 +292,7 @@ private:
       m.color.r = 0;
       m.color.g = leg.confidence;
       m.color.b = leg.confidence;
-      m.lifetime = ros::Duration(0.05);
+      // m.lifetime = ros::Duration(0.05);
       markers_pub_.publish(m);
 
       // Comparison using '==' and not '>=' is important, as it allows <max_detected_clusters_>=-1 
@@ -295,6 +301,91 @@ private:
         break;
     }
 
+    float distance_current_leg=0.,distance_next_leg=0.;
+    printf("!!!!!!%ld\n",new_leg_array.size());
+    printf("------Before------\n");
+
+    if(new_leg_array.size()>0){
+      for(int no_leg=0; no_leg<new_leg_array.size();no_leg++){
+        printf("#%d || x: %f y: %f paired: %d\n",no_leg,new_leg_array[no_leg].position.x,new_leg_array[no_leg].position.y,new_leg_array[no_leg].paired);
+      }
+      printf("----------------\n");
+      visualization_msgs::MarkerArray detected_persons;
+      for(int no_leg=0; no_leg<new_leg_array.size()-1;no_leg++){
+        if(new_leg_array[no_leg].paired!=true){
+
+          distance_current_leg = pow(new_leg_array[no_leg].position.x*new_leg_array[no_leg].position.x + new_leg_array[no_leg].position.y*new_leg_array[no_leg].position.y, 1./2.); 
+          distance_next_leg = pow(new_leg_array[no_leg+1].position.x*new_leg_array[no_leg+1].position.x + new_leg_array[no_leg+1].position.y*new_leg_array[no_leg+1].position.y, 1./2.); 
+
+          // && std::abs(int(new_leg_array[no_leg].last_indice-new_leg_array[no_leg+1].first_indice))<=10
+          if(std::abs(distance_current_leg-distance_next_leg)<0.5){
+            printf("Found pair of leg!!!!\n");
+            new_leg_array[no_leg].paired=true;
+            new_leg_array[no_leg+1].paired=true;
+
+            visualization_msgs::Marker m;
+            m.header.stamp = scan->header.stamp;
+            m.header.frame_id = fixed_frame_;
+            m.ns = "LEGS";
+            m.id = id_num++;
+            m.type = m.CYLINDER;
+            m.pose.position.x = (new_leg_array[no_leg].position.x+new_leg_array[no_leg+1].position.x)/2 ;
+            m.pose.position.y = (new_leg_array[no_leg].position.y+new_leg_array[no_leg+1].position.y)/2;
+            m.pose.position.z = 0.8;
+            m.pose.orientation.w = 1.0;
+            m.scale.x = 0.3;
+            m.scale.y = 0.3;
+            m.scale.z = 0.3;
+            m.color.a = 1;
+            m.color.r = 0;
+            m.color.g = (new_leg_array[no_leg].confidence+new_leg_array[no_leg+1].confidence)/2;
+            m.color.b = (new_leg_array[no_leg].confidence+new_leg_array[no_leg+1].confidence)/2;
+            markers_pub_.publish(m);
+            // detected_persons.markers.push_back(m);
+          }
+          else if(new_leg_array[no_leg].confidence>0.8){
+            printf("Found leg but not pair!!!!\n");
+            printf("(%f,%f) -- (%f,%f) = %f\n",new_leg_array[no_leg].position.x,new_leg_array[no_leg].position.y,new_leg_array[no_leg+1].position.x,new_leg_array[no_leg+1].position.y,std::abs(distance_current_leg-distance_next_leg));
+            visualization_msgs::Marker m;
+            m.header.stamp = scan->header.stamp;
+            m.header.frame_id = fixed_frame_;
+            m.ns = "LEGS";
+            m.id = id_num++;
+            m.type = m.CYLINDER;
+            m.pose.position.x = new_leg_array[no_leg].position.x ;
+            m.pose.position.y = new_leg_array[no_leg].position.y;
+            m.pose.position.z = 0.8;
+            m.pose.orientation.w = 1.0;
+            m.scale.x = 0.3;
+            m.scale.y = 0.3;
+            m.scale.z = 0.3;
+            m.color.a = 1;
+            m.color.r = 0;
+            m.color.g = new_leg_array[no_leg].confidence;
+            m.color.b = new_leg_array[no_leg].confidence;
+            markers_pub_.publish(m);
+          }
+
+        }
+      }
+    }
+
+    for(int no_leg=0; no_leg<new_leg_array.size();no_leg++){
+      printf("#%d || x: %f y: %f paired: %d\n",no_leg,new_leg_array[no_leg].position.x,new_leg_array[no_leg].position.y,new_leg_array[no_leg].paired);
+    }
+    printf("----------------\n");
+
+    // Clear remaining markers in Rviz
+    for (int id_num_diff = num_prev_markers_published_-id_num; id_num_diff > 0; id_num_diff--)
+    {
+      visualization_msgs::Marker m;
+      m.header.stamp = scan->header.stamp;
+      m.header.frame_id = fixed_frame_;
+      m.ns = "LEGS";
+      m.id = id_num_diff + id_num;
+      m.action = m.DELETE;
+      markers_pub_.publish(m);
+    }
     num_prev_markers_published_ = id_num; // For the next callback
 
     detected_leg_clusters_pub_.publish(detected_leg_clusters);
