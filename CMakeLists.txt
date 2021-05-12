@@ -23,6 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
   image_geometry
   message_generation
   backward_ros
+  spencer_tracking_msgs
 )
 
 add_message_files(
