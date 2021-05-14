@@ -108,7 +108,7 @@ ScanProcessor::~ScanProcessor()
     delete (*c);
 }
 
-void ScanProcessor::removeLessThan(uint32_t num)
+void ScanProcessor::removePoints(uint32_t min_num,uint32_t max_num)
 {
   std::list<SampleSet*>::iterator c_iter = clusters_.begin();
 
@@ -118,7 +118,7 @@ void ScanProcessor::removeLessThan(uint32_t num)
   int removed_points = 0;
   while (c_iter != clusters_.end())
   {
-    if ( (*c_iter)->size() < num )
+    if ( (*c_iter)->size() < min_num || (*c_iter)->size() > max_num)
     {
       indexToBeRemove.push_back(laser_indices[index]);
       indexToBeRemove.push_back(laser_indices[index+1]);
@@ -133,11 +133,12 @@ void ScanProcessor::removeLessThan(uint32_t num)
     index++;
   }
 
+  //TODO: this part got memory issue, please check
   // Don't forget the last index
-  if(abs(laser_indices[index]-laser_indices[index-1])<num){
-    indexToBeRemove.push_back(laser_indices[index-1]);
-    indexToBeRemove.push_back(laser_indices[index]);
-  }
+  // if(abs(laser_indices[index]-laser_indices[index-1])<min_num || abs(laser_indices[index]-laser_indices[index-1])>max_num){
+  //   indexToBeRemove.push_back(laser_indices[index-1]);
+  //   indexToBeRemove.push_back(laser_indices[index]);
+  // }
 
   std::list<std::vector<int>>::iterator cluster_indices__indices = cluster_indices_.begin();
   while (cluster_indices__indices != cluster_indices_.end())

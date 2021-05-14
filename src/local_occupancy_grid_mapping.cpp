@@ -67,6 +67,7 @@ public:
     nh_private.param("reliable_inf_range", reliable_inf_range_, 5.0);
     nh_.param("cluster_dist_euclid", cluster_dist_euclid_, 0.13);
     nh_.param("min_points_per_cluster", min_points_per_cluster_, 3);  
+    nh_.param("max_points_per_cluster_", max_points_per_cluster_, 100);
 
     // Initialize map
     // All probabilities are held in log-space
@@ -129,7 +130,7 @@ private:
 
   double cluster_dist_euclid_;
   int min_points_per_cluster_;  
-
+  int max_points_per_cluster_;
   tf::TransformListener tfl_;
 
 
@@ -200,7 +201,7 @@ private:
       sensor_msgs::LaserScan scan = *scan_msg;
       laser_processor::ScanProcessor processor(scan); 
       processor.splitConnected(cluster_dist_euclid_);        
-      processor.removeLessThan(min_points_per_cluster_);   
+      processor.removePoints(min_points_per_cluster_,max_points_per_cluster_);
       for (std::list<laser_processor::SampleSet*>::iterator c_iter = processor.getClusters().begin();
        c_iter != processor.getClusters().end();
        ++c_iter)

@@ -56,6 +56,7 @@ public:
     // Optional parameters (i.e., params with defaults)
     nh_private.param("cluster_dist_euclid", cluster_dist_euclid_, 0.13);
     nh_private.param("min_points_per_cluster", min_points_per_cluster_, 3);        
+    nh_.param("max_points_per_cluster", max_points_per_cluster_, 100);
     
     // Optional parameters - either the x-y coordinates of a bounding box can be specified 
     // or the min/max angle and length for an arc
@@ -89,6 +90,7 @@ public:
     printf("\nROS parameters: \n");
     printf("cluster_dist_euclid:%.2fm \n", cluster_dist_euclid_);
     printf("min_points_per_cluster:%i \n", min_points_per_cluster_);
+    printf("max_points_per_cluster:%i \n", max_points_per_cluster_);
     printf("\n");
   }
 
@@ -117,7 +119,7 @@ public:
         // Processes scan
         laser_processor::ScanProcessor processor(*scan);
         processor.splitConnected(cluster_dist_euclid_);
-        processor.removeLessThan(min_points_per_cluster_);
+        processor.removePoints(min_points_per_cluster_,max_points_per_cluster_);
 
         geometry_msgs::PoseArray leg_cluster_positions;
         leg_cluster_positions.header.frame_id = laser_frame_;
@@ -197,6 +199,7 @@ private:
 
   double cluster_dist_euclid_;
   int min_points_per_cluster_;
+  int max_points_per_cluster_;
 
   // to describe bounding box containing positive clusters
   bool use_bounding_box_;

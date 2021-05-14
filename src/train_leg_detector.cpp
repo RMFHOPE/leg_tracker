@@ -71,6 +71,7 @@ public:
     // Get ROS params (all have default values so it's not critical we get them all)
     nh.param("cluster_dist_euclid", cluster_dist_euclid_, 0.13);
     nh.param("min_points_per_cluster", min_points_per_cluster_, 3);
+    nh.param("max_points_per_cluster_", max_points_per_cluster_, 1000);
     nh.param("undersample_negative_factor", undersample_negative_factor_, 50);
     nh.param("positive_leg_cluster_positions_topic", positive_leg_cluster_positions_topic_, std::string("/leg_cluster_positions"));
 
@@ -78,6 +79,7 @@ public:
     printf("\nROS parameters: \n");
     printf("cluster_dist_euclid:%.2fm \n", cluster_dist_euclid_);
     printf("min_points_per_cluster:%i \n", min_points_per_cluster_);
+    printf("max_points_per_cluster:%i \n", max_points_per_cluster_);
     printf("undersample_negative_factor:%i \n", undersample_negative_factor_);
     printf("positive_leg_cluster_positions_topic:%s \n", positive_leg_cluster_positions_topic_.c_str());
     printf("\n");
@@ -328,6 +330,7 @@ private:
 
   double cluster_dist_euclid_;
   int min_points_per_cluster_;  
+  int max_points_per_cluster_;
   int undersample_negative_factor_;
   std::string positive_leg_cluster_positions_topic_;
 
@@ -376,7 +379,7 @@ private:
       {  
         laser_processor::ScanProcessor processor(*scan);
         processor.splitConnected(cluster_dist_euclid_);
-        processor.removeLessThan(min_points_per_cluster_);
+        processor.removePoints(min_points_per_cluster_,max_points_per_cluster_);
  
         for (std::list<laser_processor::SampleSet*>::iterator i = processor.getClusters().begin();
              i != processor.getClusters().end();
@@ -438,7 +441,7 @@ private:
       {
         laser_processor::ScanProcessor processor(*scan);
         processor.splitConnected(cluster_dist_euclid_);
-        processor.removeLessThan(min_points_per_cluster_);
+        processor.removePoints(min_points_per_cluster_,max_points_per_cluster_);
  
         for (std::list<laser_processor::SampleSet*>::iterator i = processor.getClusters().begin();
              i != processor.getClusters().end();
