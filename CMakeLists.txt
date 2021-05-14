@@ -24,6 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   backward_ros
   spencer_tracking_msgs
+  Eigen3
 )
 
 add_message_files(
@@ -50,6 +51,7 @@ include_directories(
 	INCLUDE include
 	${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
 )
 
 

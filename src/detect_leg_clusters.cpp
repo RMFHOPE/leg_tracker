@@ -57,6 +57,7 @@
 #include <spencer_tracking_msgs/DetectedPerson.h>
 #include <spencer_tracking_msgs/DetectedPersons.h>
 
+# include <Eigen/Core>
 
 /**
 * @brief Detects clusters in laser scan with leg-like shapes
@@ -81,11 +82,13 @@ public:
     nh_.param("fixed_frame", fixed_frame_, std::string("odom"));
     nh_.param("detection_threshold", detection_threshold_, -1.0);
     nh_.param("cluster_dist_euclid", cluster_dist_euclid_, 0.13);
+    nh_.param("max_points_per_cluster", max_points_per_cluster_, 100);
     nh_.param("min_points_per_cluster", min_points_per_cluster_, 3);                
     nh_.param("max_detect_distance", max_detect_distance_, 10.0);   
     nh_.param("marker_display_lifetime", marker_display_lifetime_, 0.2);   
     nh_.param("use_scan_header_stamp_for_tfs", use_scan_header_stamp_for_tfs_, false);
     nh_.param("max_detected_clusters", max_detected_clusters_, -1);
+    nh_.param("distance_between_leg", m_distance_between_leg, 0.6);
 
     // Print back
     ROS_INFO("forest_file: %s", forest_file.c_str());
@@ -98,6 +101,7 @@ public:
     ROS_INFO("marker_display_lifetime: %.2f", marker_display_lifetime_);
     ROS_INFO("use_scan_header_stamp_for_tfs: %d", use_scan_header_stamp_for_tfs_);    
     ROS_INFO("max_detected_clusters: %d", max_detected_clusters_);    
+    ROS_INFO("distance_between_leg: %.2f", m_distance_between_leg);
 
     // Load random forst
     forest = cv::ml::StatModel::load<cv::ml::RTrees>(forest_file);
@@ -140,6 +144,7 @@ private:
   double detection_threshold_;
   double cluster_dist_euclid_;
   int min_points_per_cluster_;  
+  int max_points_per_cluster_;
   double max_detect_distance_;
   double marker_display_lifetime_;
   int max_detected_clusters_;
@@ -148,6 +153,7 @@ private:
 
   int m_lastDetectionId,m_detectionIdIncrement;
   double m_poseVariance;
+  double m_distance_between_leg;
 
   /**
   * @brief Clusters the scan according to euclidian distance, 
@@ -159,7 +165,7 @@ private:
   {         
     laser_processor::ScanProcessor processor(*scan); 
     processor.splitConnected(cluster_dist_euclid_);        
-    processor.removeLessThan(min_points_per_cluster_);    
+    processor.removePoints(min_points_per_cluster_,max_points_per_cluster_);
 
     // OpenCV matrix needed to use the OpenCV random forest classifier
     CvMat* tmp_mat = cvCreateMat(1, feat_count_, CV_32FC1); 
@@ -317,143 +323,117 @@ private:
     bool found_person;
     std::vector<uint32_t> person_laser_indices;
 
+    //TODO: check this if case statement
     if(new_leg_array.size()>1){
+      const int number_of_legs = int(new_leg_array.size());
+
+      // Compute the euclidean distance and find the minimum leg with the current leg
+      Eigen::MatrixXd leg_pairing = Eigen::MatrixXd::Identity(number_of_legs, number_of_legs);
+
+      const double min_distance_threshold = m_distance_between_leg*m_distance_between_leg;
+      double min_distance;
+      int leg_index;
+      std::vector<int> leg_pairing_vector;
+      leg_pairing_vector.reserve(number_of_legs);
+      for(int no_leg=0; no_leg<new_leg_array.size();no_leg++){
+        min_distance = 9999;
+        leg_index = -1;
+        for(int pairing_leg=0; pairing_leg<new_leg_array.size();pairing_leg++){
+          if(pairing_leg==no_leg){
+            leg_pairing(no_leg,pairing_leg) = 9999;
+            continue;
+          }
+          distance_current_leg = pow(new_leg_array[no_leg].position.x-new_leg_array[pairing_leg].position.x,2) + pow(new_leg_array[no_leg].position.y-new_leg_array[pairing_leg].position.y,2);
+          leg_pairing(no_leg,pairing_leg) = distance_current_leg;
+
+          if(distance_current_leg<min_distance){
+            min_distance = distance_current_leg;
+            leg_index = pairing_leg;
+          }
+        }
+        leg_pairing_vector.push_back(leg_index);
+      }
+
+      // Combine the legs which distance less than min_distance_threshold into paired legs vector
+      std::vector<int> leg_paired_vector;
+      leg_paired_vector.reserve(number_of_legs);
+      for(int leg_no=0;leg_no<leg_pairing_vector.size();leg_no++){
+        //TODO: should check the confidence of both legs also
+        if(leg_pairing(leg_no,leg_pairing_vector[leg_no])<min_distance_threshold && leg_pairing_vector[leg_pairing_vector[leg_no]]==leg_no){
+          leg_paired_vector.push_back(leg_no);
+        }
+      }
+
+      // for(int row=0;row<number_of_legs;row++){
+      //   std::cout<<"Leg "<<row<<" ";
+      //   for(int column=0;column<number_of_legs;column++){
+      //     std::cout<<leg_pairing(row,column)<<" ";
+      //   }
+      //   std::cout<<std::endl;
+      // }
+
+      // for(int i=0;i<leg_paired_vector.size();i++){
+      //   std::cout<<leg_paired_vector[i]<<" ";
+      // }
+      // std::cout<<std::endl;
+
       // for(int no_leg=0; no_leg<new_leg_array.size();no_leg++){
       //   printf("#%d || x: %f y: %f paired: %d\n",no_leg,new_leg_array[no_leg].position.x,new_leg_array[no_leg].position.y,new_leg_array[no_leg].paired);
       // }
+
       // printf("----------------\n");
-      // for(int no_leg=0; no_leg<new_leg_array.size()-2;no_leg++){
-        // if(new_leg_array[no_leg].paired!=true){
+      // combined paired legs indices and set paired flag = true so it won't publish duplicate bounding box for single detection result
+      for(int i=0;i<leg_paired_vector.size();){
+        spencer_tracking_msgs::DetectedPerson detectedPerson;
+        m_lastDetectionId += m_detectionIdIncrement;
+        detectedPerson.detection_id = m_lastDetectionId;
+        detectedPerson.modality = spencer_tracking_msgs::DetectedPerson::MODALITY_GENERIC_LASER_2D;
+        detectedPerson.confidence = (new_leg_array[leg_paired_vector[i]].confidence+new_leg_array[leg_paired_vector[i+1]].confidence)/2;
+        detectedPerson.pose.pose.position.x = (new_leg_array[leg_paired_vector[i]].position.x+new_leg_array[leg_paired_vector[i+1]].position.x)/2;
+        detectedPerson.pose.pose.position.y = -(new_leg_array[leg_paired_vector[i]].position.y+new_leg_array[leg_paired_vector[i+1]].position.y)/2;
+        detectedPerson.pose.pose.position.z = 0.0;
 
-        //   distance_current_leg = pow(new_leg_array[no_leg].position.x*new_leg_array[no_leg].position.x + new_leg_array[no_leg].position.y*new_leg_array[no_leg].position.y, 1./2.); 
-        //   distance_next_leg = pow(new_leg_array[no_leg+1].position.x*new_leg_array[no_leg+1].position.x + new_leg_array[no_leg+1].position.y*new_leg_array[no_leg+1].position.y, 1./2.); 
-        //   distance_next_next_leg = pow(new_leg_array[no_leg+2].position.x*new_leg_array[no_leg+2].position.x + new_leg_array[no_leg+2].position.y*new_leg_array[no_leg+2].position.y, 1./2.); 
-        //   found_person = false;
+        const double LARGE_VARIANCE = 999999999;
+        for(size_t d = 0; d < 2; d++) detectedPerson.pose.covariance[d*6 + d] = m_poseVariance;
+        for(size_t d = 2; d < 6; d++) detectedPerson.pose.covariance[d*6 + d] = LARGE_VARIANCE;
 
-        //   visualization_msgs::Marker m;
+        detectedPerson.indices.insert(detectedPerson.indices.end(), new_leg_array[leg_paired_vector[i]].indices.begin(), new_leg_array[leg_paired_vector[i]].indices.end());
+        detectedPerson.indices.insert(detectedPerson.indices.end(), new_leg_array[leg_paired_vector[i+1]].indices.begin(), new_leg_array[leg_paired_vector[i+1]].indices.end());
+        detectedPersons.detections.push_back(detectedPerson);
 
-        //   // && std::abs(int(new_leg_array[no_leg].last_indice-new_leg_array[no_leg+1].first_indice))<=10
-        //   if(std::abs(distance_current_leg-distance_next_leg)<0.5){
-        //     printf("Found pair of leg!!!!\n");
-        //     found_person=true;
-        //     new_leg_array[no_leg].paired=true;
-        //     new_leg_array[no_leg+1].paired=true;
+        new_leg_array[leg_paired_vector[i]].paired = true;
+        new_leg_array[leg_paired_vector[i+1]].paired = true;
 
-        //     // visualization_msgs::Marker m;
-        //     m.header.stamp = scan->header.stamp;
-        //     m.header.frame_id = fixed_frame_;
-        //     m.ns = "LEGS";
-        //     m.id = id_num++;
-        //     m.type = m.CYLINDER;
-        //     m.pose.position.x = (new_leg_array[no_leg].position.x+new_leg_array[no_leg+1].position.x)/2 ;
-        //     m.pose.position.y = (new_leg_array[no_leg].position.y+new_leg_array[no_leg+1].position.y)/2;
-        //     m.pose.position.z = 0.8;
-        //     m.pose.orientation.w = 1.0;
-        //     m.scale.x = 0.3;
-        //     m.scale.y = 0.3;
-        //     m.scale.z = 0.3;
-        //     m.color.a = 1;
-        //     m.color.r = 0;
-        //     m.color.g = (new_leg_array[no_leg].confidence+new_leg_array[no_leg+1].confidence)/2;
-        //     m.color.b = (new_leg_array[no_leg].confidence+new_leg_array[no_leg+1].confidence)/2;
-        //     person_laser_indices.insert(person_laser_indices.end(), new_leg_array[no_leg].indices.begin(), new_leg_array[no_leg].indices.end());
-        //     person_laser_indices.insert(person_laser_indices.end(), new_leg_array[no_leg+1].indices.begin(), new_leg_array[no_leg+1].indices.end());
-        //     markers_pub_.publish(m);
-        //   }
-        //   else if(std::abs(distance_current_leg-distance_next_next_leg)<0.5){
-        //     printf("Found pair of leg!!!!\n");
-        //     found_person=true;
-        //     new_leg_array[no_leg].paired=true;
-        //     new_leg_array[no_leg+2].paired=true;
-
-        //     // visualization_msgs::Marker m;
-        //     m.header.stamp = scan->header.stamp;
-        //     m.header.frame_id = fixed_frame_;
-        //     m.ns = "LEGS";
-        //     m.id = id_num++;
-        //     m.type = m.CYLINDER;
-        //     m.pose.position.x = (new_leg_array[no_leg].position.x+new_leg_array[no_leg+2].position.x)/2 ;
-        //     m.pose.position.y = (new_leg_array[no_leg].position.y+new_leg_array[no_leg+2].position.y)/2;
-        //     m.pose.position.z = 0.8;
-        //     m.pose.orientation.w = 1.0;
-        //     m.scale.x = 0.3;
-        //     m.scale.y = 0.3;
-        //     m.scale.z = 0.3;
-        //     m.color.a = 1;
-        //     m.color.r = 0;
-        //     m.color.g = (new_leg_array[no_leg].confidence+new_leg_array[no_leg+2].confidence)/2;
-        //     m.color.b = (new_leg_array[no_leg].confidence+new_leg_array[no_leg+2].confidence)/2;
-        //     person_laser_indices.insert(person_laser_indices.end(), new_leg_array[no_leg].indices.begin(), new_leg_array[no_leg].indices.end());
-        //     person_laser_indices.insert(person_laser_indices.end(), new_leg_array[no_leg+2].indices.begin(), new_leg_array[no_leg+2].indices.end());
-        //     markers_pub_.publish(m);
-        //   }
-        //   else if(new_leg_array[no_leg].confidence>0.1){
-        //     printf("Found leg but not pair!!!!\n");
-        //     found_person=true;
-        //     printf("(%f,%f) -- (%f,%f) = %f\n",new_leg_array[no_leg].position.x,new_leg_array[no_leg].position.y,new_leg_array[no_leg+1].position.x,new_leg_array[no_leg+1].position.y,std::abs(distance_current_leg-distance_next_leg));
-        //     // visualization_msgs::Marker m;
-        //     m.header.stamp = scan->header.stamp;
-        //     m.header.frame_id = fixed_frame_;
-        //     m.ns = "LEGS";
-        //     m.id = id_num++;
-        //     m.type = m.CYLINDER;
-        //     m.pose.position.x = new_leg_array[no_leg].position.x ;
-        //     m.pose.position.y = new_leg_array[no_leg].position.y;
-        //     m.pose.position.z = 0.8;
-        //     m.pose.orientation.w = 1.0;
-        //     m.scale.x = 0.3;
-        //     m.scale.y = 0.3;
-        //     m.scale.z = 0.3;
-        //     m.color.a = 1;
-        //     m.color.r = 0;
-        //     m.color.g = new_leg_array[no_leg].confidence;
-        //     m.color.b = new_leg_array[no_leg].confidence;
-        //     person_laser_indices.insert(person_laser_indices.end(), new_leg_array[no_leg].indices.begin(), new_leg_array[no_leg].indices.end());
-        //     markers_pub_.publish(m);
-        //   }
-
-        //   if(found_person){
-        //     spencer_tracking_msgs::DetectedPerson detectedPerson;
-        //     m_lastDetectionId += m_detectionIdIncrement;
-        //     detectedPerson.detection_id = m_lastDetectionId;
-        //     detectedPerson.modality = spencer_tracking_msgs::DetectedPerson::MODALITY_GENERIC_LASER_2D;
-        //     detectedPerson.confidence = m.color.g;
-        //     detectedPerson.pose.pose.position.x = m.pose.position.x;
-        //     detectedPerson.pose.pose.position.y = -m.pose.position.y;
-        //     detectedPerson.pose.pose.position.z = 0.0;
-
-        //     const double LARGE_VARIANCE = 999999999;
-        //     for(size_t d = 0; d < 2; d++) detectedPerson.pose.covariance[d*6 + d] = m_poseVariance;
-        //     for(size_t d = 2; d < 6; d++) detectedPerson.pose.covariance[d*6 + d] = LARGE_VARIANCE;
-
-        //     detectedPerson.indices = person_laser_indices;
-        //     person_laser_indices.clear();
-        //     detectedPersons.detections.push_back(detectedPerson);
-        //   }
-          for(int no_leg=0; no_leg<new_leg_array.size();no_leg++){
-            spencer_tracking_msgs::DetectedPerson detectedPerson;
-            m_lastDetectionId += m_detectionIdIncrement;
-            detectedPerson.detection_id = m_lastDetectionId;
-            detectedPerson.modality = spencer_tracking_msgs::DetectedPerson::MODALITY_GENERIC_LASER_2D;
-            detectedPerson.confidence = new_leg_array[no_leg].confidence;
-            detectedPerson.pose.pose.position.x = new_leg_array[no_leg].position.x;
-            detectedPerson.pose.pose.position.y = -new_leg_array[no_leg].position.y;
-            detectedPerson.pose.pose.position.z = 0.0;
-
-            const double LARGE_VARIANCE = 999999999;
-            for(size_t d = 0; d < 2; d++) detectedPerson.pose.covariance[d*6 + d] = m_poseVariance;
-            for(size_t d = 2; d < 6; d++) detectedPerson.pose.covariance[d*6 + d] = LARGE_VARIANCE;
-
-            detectedPerson.indices = new_leg_array[no_leg].indices;
-            detectedPersons.detections.push_back(detectedPerson);
-        }
+        std::cout<<"Paired of legs "<<leg_paired_vector[i]<<" "<<leg_paired_vector[i+1]<<std::endl;
+        i=i+2;
       }
-    // }
 
-    for(int no_leg=0; no_leg<new_leg_array.size();no_leg++){
-      printf("#%d || x: %f y: %f paired: %d\n",no_leg,new_leg_array[no_leg].position.x,new_leg_array[no_leg].position.y,new_leg_array[no_leg].paired);
     }
-    printf("----------------\n");
+    else{
+      ROS_WARN("No detection results from laserScan detection! It may becasue failed tf transformPoint or new_leg_array== %ld",new_leg_array.size());
+    }
+
+    if(new_leg_array.size()>0){
+      for(int no_leg=0; no_leg<new_leg_array.size();no_leg++){
+        if(new_leg_array[no_leg].paired) continue;
+
+        spencer_tracking_msgs::DetectedPerson detectedPerson;
+        m_lastDetectionId += m_detectionIdIncrement;
+        detectedPerson.detection_id = m_lastDetectionId;
+        detectedPerson.modality = spencer_tracking_msgs::DetectedPerson::MODALITY_GENERIC_LASER_2D;
+        detectedPerson.confidence = new_leg_array[no_leg].confidence;
+        detectedPerson.pose.pose.position.x = new_leg_array[no_leg].position.x;
+        detectedPerson.pose.pose.position.y = -new_leg_array[no_leg].position.y;
+        detectedPerson.pose.pose.position.z = 0.0;
+
+        const double LARGE_VARIANCE = 999999999;
+        for(size_t d = 0; d < 2; d++) detectedPerson.pose.covariance[d*6 + d] = m_poseVariance;
+        for(size_t d = 2; d < 6; d++) detectedPerson.pose.covariance[d*6 + d] = LARGE_VARIANCE;
+
+        detectedPerson.indices = new_leg_array[no_leg].indices;
+        detectedPersons.detections.push_back(detectedPerson);
+      }
+    }
 
     // Clear remaining markers in Rviz
     for (int id_num_diff = num_prev_markers_published_-id_num; id_num_diff > 0; id_num_diff--)
