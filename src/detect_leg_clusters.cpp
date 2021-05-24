@@ -89,6 +89,7 @@ public:
     nh_.param("use_scan_header_stamp_for_tfs", use_scan_header_stamp_for_tfs_, false);
     nh_.param("max_detected_clusters", max_detected_clusters_, -1);
     nh_.param("distance_between_leg", m_distance_between_leg, 0.6);
+    nh_.param("detector_frequency", m_detectorFrequency, 15.0);
 
     // Print back
     ROS_INFO("forest_file: %s", forest_file.c_str());
@@ -102,6 +103,7 @@ public:
     ROS_INFO("use_scan_header_stamp_for_tfs: %d", use_scan_header_stamp_for_tfs_);    
     ROS_INFO("max_detected_clusters: %d", max_detected_clusters_);    
     ROS_INFO("distance_between_leg: %.2f", m_distance_between_leg);
+    ROS_INFO("detector_frequency: %.2f", m_detectorFrequency);
 
     // Load random forst
     forest = cv::ml::StatModel::load<cv::ml::RTrees>(forest_file);
@@ -154,6 +156,8 @@ private:
   int m_lastDetectionId,m_detectionIdIncrement;
   double m_poseVariance;
   double m_distance_between_leg;
+  double m_lastComputed = 0;
+  double m_detectorFrequency;
 
   /**
   * @brief Clusters the scan according to euclidian distance, 
@@ -163,6 +167,17 @@ private:
   */
   void laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
   {         
+    if (ros::Time::now().toSec() - m_lastComputed < 1/m_detectorFrequency ){
+      ROS_WARN("Laser Detector input message too fast!");
+      return;
+    }
+    else{
+      printf("laser detector frequency: %f\n",1/(ros::Time::now().toSec() - m_lastComputed));
+      printf("Interval: %f\n",ros::Time::now().toSec() - m_lastComputed);
+    }
+
+    m_lastComputed = ros::Time::now().toSec();
+
     laser_processor::ScanProcessor processor(*scan); 
     processor.splitConnected(cluster_dist_euclid_);        
     processor.removePoints(min_points_per_cluster_,max_points_per_cluster_);
@@ -404,7 +419,7 @@ private:
         new_leg_array[leg_paired_vector[i]].paired = true;
         new_leg_array[leg_paired_vector[i+1]].paired = true;
 
-        std::cout<<"Paired of legs "<<leg_paired_vector[i]<<" "<<leg_paired_vector[i+1]<<std::endl;
+        // std::cout<<"Paired of legs "<<leg_paired_vector[i]<<" "<<leg_paired_vector[i+1]<<std::endl;
         i=i+2;
       }
 
