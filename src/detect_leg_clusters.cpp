@@ -168,7 +168,7 @@ private:
   void laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
   {         
     if (ros::Time::now().toSec() - m_lastComputed < 1/m_detectorFrequency ){
-      ROS_WARN("Laser Detector input message too fast!");
+      ROS_DEBUG("Laser Detector input message too fast!");
       return;
     }
     else{

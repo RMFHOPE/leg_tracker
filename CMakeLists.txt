@@ -10,6 +10,7 @@ if(NOT Boost_FOUND)
     message(ERROR " Boost not found!")
 endif(NOT Boost_FOUND)
 
+
 list(APPEND CMAKE_PREFIX_PATH "/usr/local/libopencv3")
 find_package(OpenCV 3.4.11 EXACT)
 
@@ -46,6 +47,10 @@ catkin_package(
   CATKIN_DEPENDS message_runtime
 )
 
+### FOR PROFILING (need to set after catkin_package)
+add_compile_options(-pg -g -O0)
+set(catkin_LIBRARIES ${catkin_LIBRARIES} -pg -g -O0)
+###
 
 include_directories(
 	INCLUDE include
@@ -54,6 +59,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
 )
 
+include_directories("/usr/include/eigen3")
 
 add_executable(
   extract_positive_training_clusters
