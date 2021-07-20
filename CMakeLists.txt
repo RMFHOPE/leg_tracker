@@ -10,6 +10,14 @@ if(NOT Boost_FOUND)
     message(ERROR " Boost not found!")
 endif(NOT Boost_FOUND)
 
+# if(NOT CMAKE_BUILD_TYPE MATCHES Debug)
+#   message("CMAKE_BUILD_TYPE: --- WARN ---")
+#   # Disable debug and info-level logging statements in release mode
+#   add_definitions(-DROSCONSOLE_MIN_SEVERITY=ROSCONSOLE_SEVERITY_WARN)
+# else()
+#   message("CMAKE_BUILD_TYPE: --- DEBUG ---")
+#   add_definitions(-DROSCONSOLE_MIN_SEVERITY=ROSCONSOLE_SEVERITY_DEBUG)
+# endif()
 
 list(APPEND CMAKE_PREFIX_PATH "/usr/local/libopencv3")
 find_package(OpenCV 3.4.11 EXACT)

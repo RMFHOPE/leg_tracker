@@ -166,16 +166,17 @@ private:
   * Called every time a laser scan is published.
   */
   void laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan)
-  {         
+  {
     if (ros::Time::now().toSec() - m_lastComputed < 1/m_detectorFrequency ){
       ROS_DEBUG("Laser Detector input message too fast!");
       return;
     }
     else{
-      printf("laser detector frequency: %f\n",1/(ros::Time::now().toSec() - m_lastComputed));
-      printf("Interval: %f\n",ros::Time::now().toSec() - m_lastComputed);
+      ROS_DEBUG("laser detector frequency: %f\n",1/(ros::Time::now().toSec() - m_lastComputed));
+      ROS_DEBUG("Interval: %f\n",ros::Time::now().toSec() - m_lastComputed);
     }
 
+    ROS_DEBUG("------------");
     m_lastComputed = ros::Time::now().toSec();
 
     laser_processor::ScanProcessor processor(*scan); 
@@ -338,7 +339,7 @@ private:
     bool found_person;
     std::vector<uint32_t> person_laser_indices;
 
-    //TODO: check this if case statement
+    // Only do pairing when more than one leg is detected
     if(new_leg_array.size()>1){
       const int number_of_legs = int(new_leg_array.size());
 
@@ -366,6 +367,7 @@ private:
             leg_index = pairing_leg;
           }
         }
+        ROS_DEBUG_STREAM("no_leg: "<<no_leg<<" pairing with leg_index: "<<leg_index<<"  min_distance: "<<min_distance);
         leg_pairing_vector.push_back(leg_index);
       }
 
@@ -376,6 +378,7 @@ private:
         //TODO: should check the confidence of both legs also
         if(leg_pairing(leg_no,leg_pairing_vector[leg_no])<min_distance_threshold && leg_pairing_vector[leg_pairing_vector[leg_no]]==leg_no){
           leg_paired_vector.push_back(leg_no);
+          leg_paired_vector.push_back(leg_pairing_vector[leg_no]);
         }
       }
 
@@ -419,7 +422,7 @@ private:
         new_leg_array[leg_paired_vector[i]].paired = true;
         new_leg_array[leg_paired_vector[i+1]].paired = true;
 
-        // std::cout<<"Paired of legs "<<leg_paired_vector[i]<<" "<<leg_paired_vector[i+1]<<std::endl;
+        ROS_DEBUG_STREAM("Paired of legs "<<leg_paired_vector[i]<<" "<<leg_paired_vector[i+1]<<" ======= "<<m_lastDetectionId);
         i=i+2;
       }
 
@@ -428,6 +431,7 @@ private:
       ROS_WARN("No detection results from laserScan detection! It may becasue failed tf transformPoint or new_leg_array== %ld",new_leg_array.size());
     }
 
+    // Add those unpaired leg into detectedPerson msg
     if(new_leg_array.size()>0){
       for(int no_leg=0; no_leg<new_leg_array.size();no_leg++){
         if(new_leg_array[no_leg].paired) continue;
