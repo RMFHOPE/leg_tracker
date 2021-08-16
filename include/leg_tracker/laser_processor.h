@@ -120,8 +120,12 @@ class ScanProcessor
 {
   std::list<SampleSet*> clusters_;
   sensor_msgs::LaserScan scan_;
+  std::list<std::vector<int>> cluster_indices_;
 
 public:
+  std::vector<int> laser_indices;
+  std::vector<std::vector<uint32_t>> laser_indice_cluster;
+
   /**
   * @brief Get all the clusters in the scan
   * @return List of clusters
@@ -143,7 +147,7 @@ public:
   * @brief Remove and delete all references to scan clusters less than a minimum size
   * @param num Minimum number of points in cluster
   */
-  void removeLessThan(uint32_t num);
+  void removePoints(uint32_t min_num,uint32_t max_num);
 
   /**
   * @brief Split scan into clusters

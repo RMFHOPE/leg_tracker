@@ -6,27 +6,36 @@
   <param name="fixed_frame" value="base_link"/>
   <param name="scan_frequency" value="10"/>   -->
   
-  <arg name="forest_file" value="$(find leg_tracker)/config/trained_leg_detector_res=0.25.yaml" />
-  <arg name="cluster_dist_euclid" value="0.13" />
-  <arg name="scan_topic" value="scan_filtered" />
-  <arg name="fixed_frame" value="base_link" />
+  <arg name="forest_file"                   default="$(find leg_tracker)/config/trained_leg_detector_res=0.25.yaml" />
+  <arg name="cluster_dist_euclid"           default="0.13" />
+  <arg name="scan_topic"                    default="/scan_filtered" />
+  <arg name="fixed_frame"                   default="base_footprint" />
+  <arg name="max_detect_distance"           default="4" />
+  <arg name="detection_threshold"           default="0.5" />
+  <arg name="distance_between_leg"          default="0.7" />
+  <arg name="detector_frequency"            default="15" />
 
   <!-- run detect_leg_clusters -->  
+  <env name="GMON_OUT_PREFIX" value="detect_leg" />
   <node pkg="leg_tracker" type="detect_leg_clusters" name="detect_leg_clusters" output="screen">    
-    <remap from="/detect_leg_clusters/scan" to="$(arg scan_topic)"/>
+    <remap from="/scan" to="$(arg scan_topic)"/>
     <param name="forest_file" value="$(arg forest_file)"/> 
     <param name="cluster_dist_euclid" value="$(arg cluster_dist_euclid)"/>   
     <param name="fixed_frame" value="$(arg fixed_frame)"/>   
+    <param name="max_detect_distance" value="$(arg max_detect_distance)"/>   
+    <!-- <param name="detection_threshold" value="$(arg detection_threshold)"/>     -->
+    <param name="distance_between_leg" value="$(arg distance_between_leg)"/>
+    <param name="detector_frequency" value="$(arg detector_frequency)"/>
   </node>
 
   <!-- run joint_leg_tracker -->
-  <node pkg="leg_tracker" type="joint_leg_tracker.py" name="joint_leg_tracker" output="screen">
+  <!-- <node pkg="leg_tracker" type="joint_leg_tracker.py" name="joint_leg_tracker" output="screen">
     <remap from="visualization_marker" to="visualization_marker_tracker"/>
     <param name="scan_frequency" value="15"/>   
     <param name="fixed_frame" value="$(arg fixed_frame)"/>   
     <param name="dist_travelled_together_to_initiate_leg_pair" value="0.1"/>   
     <param name="in_free_space_threshold" value="0.3"/>   
-  </node>
+  </node> -->
  
    <!-- run local_occupancy_grid_mapping -->
   <!-- <node pkg="leg_tracker" type="local_occupancy_grid_mapping" name="local_occupancy_grid_mapping" output="screen"/>  -->
