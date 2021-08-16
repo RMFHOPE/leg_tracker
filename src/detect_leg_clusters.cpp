@@ -76,8 +76,10 @@ public:
     // Get ROS parameters  
     std::string forest_file;
     std::string scan_topic;
-    if (!nh_.getParam("forest_file", forest_file))
+    if (!nh_.getParam("forest_file", forest_file)){
       ROS_ERROR("ERROR! Could not get random forest filename");
+      forest_file = "/home/followme/followme_ws/src/leg_tracker/config/trained_leg_detector_res=0.25.yaml";
+    }
     nh_.param("scan_topic", scan_topic, std::string("/scan"));
     nh_.param("fixed_frame", fixed_frame_, std::string("odom"));
     nh_.param("detection_threshold", detection_threshold_, -1.0);
